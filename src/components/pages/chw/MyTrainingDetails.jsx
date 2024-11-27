@@ -13,6 +13,7 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
   const [currentModulePage, setCurrentModulePage] = useState(0);
   const [pdfText, setPdfText] = useState(null);
   const [fileUrl, setFileUrl] = useState("");
+  const [completedModules, setCompletedModules] = useState([]); // Local tracking of completed modules
 
   const candidateId = 1;
 
@@ -83,55 +84,13 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
     }
   }, [fileUrl]);
 
-  const markModuleAsStudied = useCallback(async (moduleId) => {
-    if (!trainingId || !moduleId) {
-      console.error("Training ID and Module ID are required");
-      return;
+  const handleMarkAsCompleted = (moduleId) => {
+    if (!completedModules.includes(moduleId)) {
+      setCompletedModules((prev) => [...prev, moduleId]);
     }
-
-    const token = localStorage.getItem("token");
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/trainingCandidate/candidate/${candidateId}/modules/${moduleId}/mark-as-studied/`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to mark module as studied");
-      }
-
-      setData((prevData) => {
-        const updatedModules = prevData.training.modules.map((module) =>
-          module.id === moduleId ? { ...module, is_completed: true } : module
-        );
-
-        return {
-          ...prevData,
-          training: {
-            ...prevData.training,
-            modules: updatedModules,
-          },
-        };
-      });
-    } catch (error) {
-      console.error("Error marking module as studied:", error);
-    }
-  }, [trainingId]);
+  };
 
   const handleTakeExam = useCallback(() => {
-    const allModulesCompleted = data?.training?.modules.every((module) => module.is_completed);
-    
-    if (!allModulesCompleted) {
-      setErrorMessage("You must complete all modules before taking the exam.");
-      return;
-    }
-
     if (data?.training?.id) {
       navigate(`/chw/takeExam/${data.training.id}`);
     }
@@ -140,9 +99,8 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
   const renderMaterial = useCallback((material) => {
     const fileExtension = material.file.split(".").pop().toLowerCase();
     const materialFileUrl = `http://127.0.0.1:8000${material.file}`;
-  
+
     if (fileExtension === "pdf") {
-      // Render a link for PDF files to open in a new tab
       return (
         <a
           href={materialFileUrl}
@@ -154,18 +112,12 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
         </a>
       );
     } else if (["mp4", "webm", "ogg"].includes(fileExtension)) {
-      // Render a video player for video files
       return (
-        <video
-          src={materialFileUrl}
-          controls
-          className="w-full rounded-md"
-        >
+        <video src={materialFileUrl} controls className="w-full rounded-md">
           Your browser does not support the video tag.
         </video>
       );
     } else {
-      // Render a fallback for other file types
       return (
         <a
           href={materialFileUrl}
@@ -178,7 +130,6 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
       );
     }
   }, []);
-  
 
   const currentModule = useMemo(
     () => data?.training?.modules?.[currentModulePage],
@@ -187,6 +138,7 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
 
   const isFirstModule = currentModulePage === 0;
   const isLastModule = currentModulePage >= (data?.training?.modules?.length || 0) - 1;
+  const isModuleCompleted = completedModules.includes(currentModule?.id);
 
   if (loading) {
     return (
@@ -254,15 +206,18 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
               </button>
 
               <button
-                onClick={() => markModuleAsStudied(currentModule.id)}
-                className="px-6 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+                onClick={() => handleMarkAsCompleted(currentModule.id)}
+                disabled={isModuleCompleted}
+                className={`px-6 py-2 rounded-md text-white ${
+                  isModuleCompleted ? "bg-gray-500 cursor-not-allowed" : "bg-green-500 hover:bg-green-600"
+                }`}
               >
-                Mark as Studied
+                {isModuleCompleted ? "Completed" : "Mark as Completed"}
               </button>
 
               <button
                 onClick={() => setCurrentModulePage((prev) => Math.min(prev + 1, data.training.modules.length - 1))}
-                disabled={isLastModule}
+                disabled={!isModuleCompleted || isLastModule}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 Next
@@ -274,12 +229,14 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
           <p className="text-gray-600">No modules available for this training.</p>
         )}
 
-        <button
-          onClick={handleTakeExam}
-          className="mt-8 w-full py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          Take Exam
-        </button>
+        {isLastModule && isModuleCompleted && (
+          <button
+            onClick={handleTakeExam}
+            className="mt-8 w-full py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Take Exam
+          </button>
+        )}
       </div>
     </div>
   );
