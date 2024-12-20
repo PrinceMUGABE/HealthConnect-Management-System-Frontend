@@ -28,6 +28,7 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
       setErrorMessage("No token found. Please login first.");
       return;
     }
+    // hd
 
     setLoading(true);
     try {
