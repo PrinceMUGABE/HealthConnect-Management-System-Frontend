@@ -4,7 +4,7 @@ import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import Webcam from "react-webcam";
 
-// Shuffle function
+// Shuffle function remains the same
 const shuffleArray = (array) => {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -20,6 +20,7 @@ function CommunityHealthWork_TakeTrainingExam() {
   const [loading, setLoading] = useState(true);
   const [examId, setExamId] = useState(null);
   const [imageSrc, setImageSrc] = useState(null);
+  const [imageCaptured, setImageCaptured] = useState(false);
   const [trainingName, setTrainingName] = useState("");
   const [marks, setMarks] = useState(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -27,7 +28,7 @@ function CommunityHealthWork_TakeTrainingExam() {
   const [resultColor, setResultColor] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [pictureMatchScore, setPictureMatchScore] = useState(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0); // State for current question index
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const navigate = useNavigate();
 
   const storedUserData = localStorage.getItem("userData");
@@ -43,6 +44,7 @@ function CommunityHealthWork_TakeTrainingExam() {
 
   const webcamRef = useRef(null);
 
+  // Rest of your fetching functions remain the same
   useEffect(() => {
     const fetchExamByTrainingId = async () => {
       try {
@@ -108,15 +110,20 @@ function CommunityHealthWork_TakeTrainingExam() {
     }));
   };
 
-  const capture = React.useCallback(() => {
-    const imageSrc = webcamRef.current.getScreenshot();
-    setImageSrc(imageSrc);
-  }, [webcamRef]);
-
-  const retakePicture = () => {
-    setImageSrc(null);
+  // Capture image function - simplified from the first component
+  const capture = () => {
+    const capturedImageSrc = webcamRef.current.getScreenshot();
+    setImageSrc(capturedImageSrc);
+    setImageCaptured(true);
   };
 
+  // Retake image function - simplified from the first component
+  const retakeImage = () => {
+    setImageSrc(null);
+    setImageCaptured(false);
+  };
+
+  // Submit and other functions remain the same
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
@@ -147,48 +154,53 @@ function CommunityHealthWork_TakeTrainingExam() {
     const isPassed = percentage >= 80;
     const status = isPassed ? "succeed" : "failed";
 
-    const response = await fetch(imageSrc);
-    const blob = await response.blob();
-    const reader = new FileReader();
+    try {
+      const response = await fetch(imageSrc);
+      const blob = await response.blob();
+      const reader = new FileReader();
 
-    reader.readAsDataURL(blob);
-    reader.onloadend = async () => {
-      const base64String = reader.result.split(",")[1];
+      reader.readAsDataURL(blob);
+      reader.onloadend = async () => {
+        const base64String = reader.result.split(",")[1];
 
-      const formData = {
-        exam: examId,
-        marks: percentage === 0 ? 0 : percentage,
-        status: status,
-        image: base64String,
+        const formData = {
+          exam: examId,
+          marks: percentage === 0 ? 0 : percentage,
+          status: status,
+          image: base64String,
+        };
+
+        try {
+          const response = await axios.post(
+            `http://127.0.0.1:8000/result/create/`,
+            formData,
+            axiosConfig
+          );
+          setIsSubmitted(true);
+
+          const formattedMatchScore = parseFloat(response.data.match_score).toFixed(2);
+          setPictureMatchScore(formattedMatchScore);
+
+          if (isPassed) {
+            setResultMessage(`Congratulations for passing the exam with ${percentage}%! You can now view the award on the certificate panel!`);
+            setResultColor("green");
+          } else {
+            setResultMessage(`Unfortunately, the ${percentage}% marks you have got do not allow you to pass the exam. You can retake the training.`);
+            setResultColor("red");
+          }
+        } catch (err) {
+          if (err.response && err.response.data.error) {
+            setErrorMessage(err.response.data.error);
+          } else {
+            setErrorMessage("An error occurred while submitting the result.");
+          }
+          console.error("Error submitting exam result:", err);
+        }
       };
-
-      try {
-        const response = await axios.post(
-          `http://127.0.0.1:8000/result/create/`,
-          formData,
-          axiosConfig
-        );
-        setIsSubmitted(true);
-
-        const formattedMatchScore = parseFloat(response.data.match_score).toFixed(2);
-        setPictureMatchScore(formattedMatchScore);
-
-        if (isPassed) {
-          setResultMessage(`Congratulations for passing the exam with ${percentage}%! You can now view the award on the certificate panel!`);
-          setResultColor("green");
-        } else {
-          setResultMessage(`Unfortunately, the ${percentage}% marks you have got do not allow you to pass the exam. You can retake the training.`);
-          setResultColor("red");
-        }
-      } catch (err) {
-        if (err.response && err.response.data.error) {
-          setErrorMessage(err.response.data.error);
-        } else {
-          setErrorMessage("An error occurred while submitting the result.");
-        }
-        console.error("Error submitting exam result:", err);
-      }
-    };
+    } catch (err) {
+      setErrorMessage("Failed to process the captured image. Please try taking the photo again.");
+      console.error("Error processing captured image:", err);
+    }
   };
 
   const nextQuestions = () => {
@@ -237,37 +249,46 @@ function CommunityHealthWork_TakeTrainingExam() {
 
           {/* Responsive Flexbox Layout for Webcam and Questions */}
           <div className="flex flex-col md:flex-row justify-between">
-            {/* Webcam Component */}
-            <div className="mb-6 md:w-1/2">
-              {!imageSrc ? (
-                <>
-                  <Webcam
-                    audio={false}
-                    ref={webcamRef}
-                    screenshotFormat="image/jpeg"
-                    width="100%"
-                    videoConstraints={{
-                      width: 300,
-                      height: 300,
-                      facingMode: "user",
-                    }}
-                  />
-                  <button onClick={capture} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg">
-                    Capture Photo
-                  </button>
-                </>
-              ) : (
-                <>
-                  <img src={imageSrc} alt="Captured" className="w-full h-auto mb-4 rounded-lg" />
-                  <button onClick={retakePicture} className="mt-4 px-4 py-2 bg-gray-500 text-white rounded-lg">
-                    Retake Photo
-                  </button>
-                </>
-              )}
+            {/* Webcam Component - Updated to match the first component's approach */}
+            <div className="mb-6 md:w-1/2 md:pr-4">
+              <div className="flex flex-col items-center">
+                <label className="block text-sm font-medium leading-6 text-gray-900 mb-2">
+                  Capture your image for identity verification
+                </label>
+                {!imageCaptured ? (
+                  <>
+                    <Webcam
+                      audio={false}
+                      ref={webcamRef}
+                      screenshotFormat="image/png"
+                      className="w-full max-w-xs rounded-md border-2 border-gray-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={capture}
+                      className="mt-2 flex w-full justify-center rounded-md bg-blue-600 py-2 px-4 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    >
+                      Capture Image
+                    </button>
+                  </>
+                ) : (
+                  <div className="mt-4 w-full max-w-xs">
+                    <p className="text-sm text-gray-700 mb-2">Captured Image:</p>
+                    <img src={imageSrc} alt="Captured" className="w-full rounded-md border-2 border-gray-300" />
+                    <button
+                      type="button"
+                      onClick={retakeImage}
+                      className="mt-2 flex w-full justify-center rounded-md bg-red-600 py-2 px-4 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+                    >
+                      Retake Picture
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Questions Section */}
-            <div className="md:w-1/2">
+            <div className="md:w-1/2 md:pl-4">
               <h2 className="text-lg font-semibold mb-4 text-black">Questions:</h2>
               <form onSubmit={handleSubmit}>
                 {questionsData.slice(currentQuestionIndex, currentQuestionIndex + 2).map((question, index) => (
@@ -284,19 +305,23 @@ function CommunityHealthWork_TakeTrainingExam() {
                             onChange={() => handleAnswerSelect(question.id, choice.id)}
                             className="mr-2"
                           />
-                          <span className="text-gray-700">{choice.text}</span> 
+                          <span className="text-gray-700">{choice.text}</span>
                         </label>
                       ))}
                     </div>
                   </div>
                 ))}
-                
+
                 <div className="flex justify-between mt-4">
                   <button
                     type="button"
                     onClick={previousQuestions}
                     disabled={currentQuestionIndex === 0}
-                    className="px-4 py-2 bg-gray-400 text-white rounded-lg"
+                    className={`px-4 py-2 rounded-lg ${
+                      currentQuestionIndex === 0
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-gray-400 text-white"
+                    }`}
                   >
                     Previous
                   </button>
@@ -304,14 +329,22 @@ function CommunityHealthWork_TakeTrainingExam() {
                     type="button"
                     onClick={nextQuestions}
                     disabled={currentQuestionIndex + 2 >= questionsData.length}
-                    className="px-4 py-2 bg-green-400 text-white rounded-lg"
+                    className={`px-4 py-2 rounded-lg ${
+                      currentQuestionIndex + 2 >= questionsData.length
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-green-400 text-white"
+                    }`}
                   >
                     Next
                   </button>
                 </div>
 
                 {currentQuestionIndex + 2 >= questionsData.length && (
-                  <button type="submit" className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg">
+                  <button
+                    type="submit"
+                    className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg w-full"
+                    disabled={!imageCaptured}
+                  >
                     Submit Exam
                   </button>
                 )}

@@ -105,64 +105,7 @@ const CitizenEditAppointment = () => {
 
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
         <form className="space-y-6" onSubmit={handleSubmit}>
-          {/* Worker Dropdown */}
-          {/* <div>
-            <label
-              htmlFor="worker"
-              className="block text-sm font-medium leading-6 text-gray-900"
-            >
-              Select Worker (Phone)
-            </label>
-            <div className="mt-2">
-              <select
-                id="worker"
-                name="worker"
-                value={data.worker || ""} // Set default selected worker
-                onChange={(e) => setData({ ...data, worker: e.target.value })}
-                required
-                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-              >
-                <option value="" className="text-gray-900 bg-white">Select worker</option>
-                {workers.map((worker) => (
-                  <option key={worker.id} value={worker.id} className="text-gray-700 bg-white">
-                    {worker.created_by.phone}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div> */}
 
-          {/* First Name */}
-          {/* <div>
-            <label htmlFor="first_name" className="block text-sm font-medium leading-6 text-gray-900">First Name</label>
-            <div className="mt-2">
-              <input
-                id="first_name"
-                name="first_name"
-                type="text"
-                value={data.first_name || ""}
-                onChange={(e) => setData({ ...data, first_name: e.target.value })}
-                required
-                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-              />
-            </div>
-          </div> */}
-
-          {/* Last Name */}
-          {/* <div>
-            <label htmlFor="last_name" className="block text-sm font-medium leading-6 text-gray-900">Last Name</label>
-            <div className="mt-2">
-              <input
-                id="last_name"
-                name="last_name"
-                type="text"
-                value={data.last_name || ""}
-                onChange={(e) => setData({ ...data, last_name: e.target.value })}
-                required
-                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-              />
-            </div>
-          </div> */}
 
           {/* Address */}
           <div>
@@ -179,6 +122,30 @@ const CitizenEditAppointment = () => {
               />
             </div>
           </div>
+
+          {/* Worker Selection */}
+<div>
+  <label htmlFor="worker" className="block text-sm font-medium leading-6 text-gray-900">
+    Assigned Worker
+  </label>
+  <div className="mt-2">
+    <select
+      id="worker"
+      name="worker"
+      value={data.worker || ""}
+      onChange={(e) => setData({ ...data, worker: e.target.value })}
+      required
+      className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+    >
+      <option value="">Select a worker</option>
+      {workers.map((worker) => (
+        <option key={worker.id} value={worker.id}>
+          {worker.first_name} {worker.last_name}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
 
           {/* Details */}
           <div>

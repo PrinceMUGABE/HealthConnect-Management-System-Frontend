@@ -14,10 +14,9 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
   const [pdfText, setPdfText] = useState(null);
   const [fileUrl, setFileUrl] = useState("");
   const [completedModules, setCompletedModules] = useState([]); // Local tracking of completed modules
+  const [candidateId, setCandidateId] = useState(null);
 
-  const candidateId = 1;
-
-  const fetchTraining = useCallback(async () => {
+  const fetchCandidate = useCallback(async () => {
     if (!trainingId) {
       setErrorMessage("Training ID is required");
       return;
@@ -28,12 +27,12 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
       setErrorMessage("No token found. Please login first.");
       return;
     }
-    // hd
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/trainingCandidate/${trainingId}/?candidate_id=${candidateId}`,
+      // First, get the candidate ID for this training using the my_trainings endpoint
+      const candidatesResponse = await fetch(
+        "http://127.0.0.1:8000/trainingCandidate/my_trainings/",
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -42,22 +41,88 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
         }
       );
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch training data: ${response.status}`);
+      if (!candidatesResponse.ok) {
+        throw new Error(`Failed to fetch candidate data: ${candidatesResponse.status}`);
       }
 
-      const jsonData = await response.json();
+      const candidatesData = await candidatesResponse.json();
+      
+      // Find the candidate record for this training
+      const candidateForTraining = candidatesData.find(
+        (candidate) => candidate.training.id === parseInt(trainingId)
+      );
+
+      if (!candidateForTraining) {
+        throw new Error("You are not registered for this training");
+      }
+
+      setCandidateId(candidateForTraining.id);
+
+      // Now fetch training details using the candidate ID
+      const trainingResponse = await fetch(
+        `http://127.0.0.1:8000/trainingCandidate/${candidateForTraining.id}/`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!trainingResponse.ok) {
+        throw new Error(`Failed to fetch training data: ${trainingResponse.status}`);
+      }
+
+      const jsonData = await trainingResponse.json();
+      
+      // Fetch module progress data
+      const progressData = await fetchModuleProgress(candidateForTraining.id);
+      
+      // Mark completed modules
+      const completedModuleIds = progressData
+        .filter(progress => progress.is_studied)
+        .map(progress => progress.module);
+      
+      setCompletedModules(completedModuleIds);
       setData(jsonData);
     } catch (error) {
-      setErrorMessage(`Error fetching training data: ${error.message}`);
+      setErrorMessage(`Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
   }, [trainingId]);
 
+  const fetchModuleProgress = async (candidateId) => {
+    // This is a placeholder function - you'll need to create an endpoint for this
+    // that returns module progress for a specific candidate
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/trainingCandidate/${candidateId}/progress/`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        // If endpoint doesn't exist yet, return empty array
+        console.warn("Module progress endpoint not implemented yet");
+        return [];
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching module progress:", error);
+      return [];
+    }
+  };
+
   useEffect(() => {
-    fetchTraining();
-  }, [fetchTraining]);
+    fetchCandidate();
+  }, [fetchCandidate]);
 
   useEffect(() => {
     const fetchPdfText = async (url) => {
@@ -85,9 +150,33 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
     }
   }, [fileUrl]);
 
-  const handleMarkAsCompleted = (moduleId) => {
+  const handleMarkAsCompleted = async (moduleId) => {
+    if (!candidateId) return;
+    
     if (!completedModules.includes(moduleId)) {
-      setCompletedModules((prev) => [...prev, moduleId]);
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(
+          `http://127.0.0.1:8000/trainingCandidate/candidate/${candidateId}/modules/${moduleId}/mark-as-studied/`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to mark module as completed");
+        }
+
+        const result = await response.json();
+        setCompletedModules((prev) => [...prev, moduleId]);
+      } catch (error) {
+        console.error("Error marking module as completed:", error);
+        setErrorMessage("Failed to mark module as completed. Please try again.");
+      }
     }
   };
 
@@ -139,7 +228,7 @@ const CommunityHealthWork_ViewTrainingDetails = () => {
 
   const isFirstModule = currentModulePage === 0;
   const isLastModule = currentModulePage >= (data?.training?.modules?.length || 0) - 1;
-  const isModuleCompleted = completedModules.includes(currentModule?.id);
+  const isModuleCompleted = currentModule && completedModules.includes(currentModule.id);
 
   if (loading) {
     return (
