@@ -109,7 +109,7 @@ const CommunityHealthWork_CertificateView = () => {
             This certificate is awarded to:
           </p>
           <h1 className="text-black font-bold" style={{ fontSize: "36px", margin: "10px 0" }}>
-            {resultData.candidate.first_name} {resultData.candidate.last_name}
+            {resultData.candidate?.worker?.first_name} {resultData.candidate?.worker?.last_name}
           </h1>
 
           {/* Course */}
